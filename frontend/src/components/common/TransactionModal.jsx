@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { categoryAPI, transactionAPI } from '../../services/api';
+import api from '../../services/api';
 
 export const TransactionModal = ({
   isOpen,
@@ -14,20 +15,24 @@ export const TransactionModal = ({
   const [amount, setAmount] = useState('');
   const [sourceOrPayee, setSourceOrPayee] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [accountId, setAccountId] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [categories, setCategories] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
+      loadAccounts();
       if (editingTransaction) {
         setType(editingTransaction.type);
         setAmount(editingTransaction.amount.toString());
         setSourceOrPayee(editingTransaction.source_or_payee);
-        setCategoryId(editingTransaction.category_id.toString());
+        setCategoryId(editingTransaction.category_id ? editingTransaction.category_id.toString() : '');
+        setAccountId(editingTransaction.account_id ? editingTransaction.account_id.toString() : '');
         setDescription(editingTransaction.description || '');
         setDate(editingTransaction.date);
         setPaymentMethod(editingTransaction.payment_method || 'Cash');
@@ -36,6 +41,7 @@ export const TransactionModal = ({
         setAmount('');
         setSourceOrPayee('');
         setCategoryId('');
+        setAccountId('');
         setDescription('');
         setDate(new Date().toISOString().split('T')[0]);
         setPaymentMethod('Cash');
@@ -59,6 +65,18 @@ export const TransactionModal = ({
       }
     } catch (err) {
       console.error('Failed to load categories:', err);
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const res = await api.get('/accounts');
+      setAccounts(res.data);
+      if (res.data.length > 0 && !accountId && !editingTransaction) {
+        setAccountId(res.data[0].id.toString());
+      }
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
     }
   };
 
@@ -91,6 +109,7 @@ export const TransactionModal = ({
         amount: parsedAmount,
         source_or_payee: sourceOrPayee.trim(),
         category_id: parseInt(categoryId),
+        account_id: accountId ? parseInt(accountId) : null,
         description: description.trim() || null,
         date,
         payment_method: paymentMethod
@@ -178,21 +197,40 @@ export const TransactionModal = ({
           />
         </div>
 
-        {/* Category */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1">Category *</label>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            required
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Category *</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              required
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Account / Wallet */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Account / Wallet</label>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">None / Unspecified</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

@@ -15,6 +15,8 @@ class RecurringTransaction(Base):
     day_of_month = Column(Integer, nullable=True, default=1)
     day_of_week = Column(Integer, nullable=True)  # 0=Monday, 6=Sunday
     month_of_year = Column(Integer, nullable=True)  # 1-12
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
     last_processed_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

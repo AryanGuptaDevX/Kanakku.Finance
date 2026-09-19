@@ -29,6 +29,7 @@ const menuSections = [
   {
     title: 'FINANCE & CASHFLOW',
     items: [
+      { name: 'Accounts & Wallets', path: '/accounts', icon: Wallet },
       { name: 'Income', path: '/income', icon: ArrowDownLeft },
       { name: 'Expenses', path: '/expenses', icon: ArrowUpRight },
       { name: 'Budgets', path: '/budgets', icon: PieChart },

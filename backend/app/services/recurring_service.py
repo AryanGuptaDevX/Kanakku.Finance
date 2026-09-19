@@ -10,6 +10,7 @@ class RecurringService:
     def process_recurring_transactions(cls, db: Session, target_month_str: str = None) -> int:
         """
         Idempotently processes all active recurring transactions for the target month or up to current date.
+        Respects start_date and end_date bounds when present.
         Returns the number of new transactions created.
         """
         if not target_month_str:
@@ -21,8 +22,6 @@ class RecurringService:
         
         month_start = date(year, month, 1)
         month_end = date(year, month, last_day)
-        today = date.today()
-        cutoff_date = min(month_end, today)
 
         active_recurrings = db.query(RecurringTransaction).filter(
             RecurringTransaction.is_active == True
@@ -56,6 +55,12 @@ class RecurringService:
                         target_dates.append(target_date)
 
             for t_date in target_dates:
+                # Check date bounds if start_date or end_date are set
+                if r.start_date and t_date < r.start_date:
+                    continue
+                if r.end_date and t_date > r.end_date:
+                    continue
+
                 # Idempotency check: Check if transaction already exists for this recurring ID on this date
                 existing = db.query(Transaction).filter(
                     Transaction.recurring_id == r.id,

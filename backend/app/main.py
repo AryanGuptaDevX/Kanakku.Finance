@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.app.database import engine, Base, SessionLocal
+from backend.app.database import engine, Base, SessionLocal, sync_schema
 from backend.app.utils.seed import seed_default_categories
 from backend.app.services.recurring_service import RecurringService
 
@@ -18,13 +18,16 @@ from backend.app.routes import (
     goals,
     analytics,
     export,
-    settings
+    settings,
+    auth,
+    accounts
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create DB tables
+    # Create DB tables & sync schema
     Base.metadata.create_all(bind=engine)
+    sync_schema(engine)
     # Seed default categories
     db = SessionLocal()
     try:
@@ -57,6 +60,8 @@ app.add_middleware(
 )
 
 # Include Routers
+app.include_router(auth.router)
+app.include_router(accounts.router)
 app.include_router(dashboard.router)
 app.include_router(transactions.router)
 app.include_router(categories.router)
@@ -68,6 +73,15 @@ app.include_router(goals.router)
 app.include_router(analytics.router)
 app.include_router(export.router)
 app.include_router(settings.router)
+
+@app.get("/")
+def root():
+    return {
+        "message": "Welcome to MoneyManager Backend API Server",
+        "frontend_app_url": "http://localhost:5173",
+        "api_documentation": "http://127.0.0.1:8000/docs",
+        "health_check": "http://127.0.0.1:8000/api/health"
+    }
 
 @app.get("/api/health")
 def health_check():

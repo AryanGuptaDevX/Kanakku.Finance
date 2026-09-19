@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, DollarSign, Database, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Settings as SettingsIcon, DollarSign, Database, RefreshCw, AlertTriangle, ShieldCheck, Download, Upload } from 'lucide-react';
 import { useCurrency } from '../context/CurrencyContext';
+import { useToast } from '../context/ToastContext';
 import { settingsAPI } from '../services/api';
+import api from '../services/api';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 
 export const Settings = () => {
   const { currency, setCurrency } = useCurrency();
+  const { addToast } = useToast();
   const [selectedSymbol, setSelectedSymbol] = useState(currency);
   const [savedMsg, setSavedMsg] = useState('');
+  const fileInputRef = useRef(null);
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [confirmInput, setConfirmInput] = useState('');
@@ -30,8 +34,42 @@ export const Settings = () => {
   const handleSaveCurrency = async (e) => {
     e.preventDefault();
     await setCurrency(selectedSymbol);
-    setSavedMsg('Currency preference updated successfully!');
-    setTimeout(() => setSavedMsg(''), 3000);
+    addToast('Display currency updated successfully', 'success');
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const res = await api.get('/settings/backup');
+      const jsonStr = JSON.stringify(res.data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kanakku_backup_${new Date().toISOString().substring(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      addToast('Backup JSON downloaded successfully', 'success');
+    } catch (err) {
+      addToast('Failed to export backup JSON', 'error');
+    }
+  };
+
+  const handleRestoreBackup = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const backupData = JSON.parse(event.target.result);
+        await api.post('/settings/restore', backupData);
+        addToast('Database restored successfully from backup!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        addToast(err.response?.data?.detail || 'Invalid or corrupted backup file', 'error');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleResetData = async (e) => {
@@ -45,7 +83,7 @@ export const Settings = () => {
     setResetting(true);
     try {
       await settingsAPI.resetData('RESET');
-      setResetMsg('Database reset completely. Default categories re-seeded.');
+      addToast('Database reset completely.', 'info');
       setIsResetModalOpen(false);
       setConfirmInput('');
       setTimeout(() => window.location.reload(), 1500);
@@ -62,20 +100,8 @@ export const Settings = () => {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Application Settings</h2>
-        <p className="text-xs text-slate-500 mt-1">Configure currency preference, view app metadata, or reset application data</p>
+        <p className="text-xs text-slate-500 mt-1">Configure currency preference, view app metadata, backup/restore data, or reset application state</p>
       </div>
-
-      {savedMsg && (
-        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-          {savedMsg}
-        </div>
-      )}
-
-      {resetMsg && (
-        <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
-          {resetMsg}
-        </div>
-      )}
 
       {/* Currency Settings Card */}
       <Card title="Display Currency Preference">
@@ -107,6 +133,33 @@ export const Settings = () => {
             </Button>
           </div>
         </form>
+      </Card>
+
+      {/* Backup & Restore Card */}
+      <Card title="Database Backup & Restoration">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">Export or Restore Data Snapshots</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-lg">
+              Export your full financial dataset (transactions, accounts, budgets, EMI loans, SIPs) as a JSON file or import a previous snapshot to restore system state.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleExportBackup}>
+              <Download className="w-4 h-4 mr-2" /> Export JSON
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleRestoreBackup}
+              accept=".json"
+              className="hidden"
+            />
+            <Button onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" /> Restore JSON
+            </Button>
+          </div>
+        </div>
       </Card>
 
       {/* Architecture & Security Overview Card */}
