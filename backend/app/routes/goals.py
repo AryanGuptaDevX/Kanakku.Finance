@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
 
 from backend.app.database import get_db
 from backend.app.models.goal import SavingsGoal
-from backend.app.schemas.goal import SavingsGoalCreate, SavingsGoalUpdate, SavingsGoalResponse
+from backend.app.models.transaction import Transaction
+from backend.app.models.category import Category
+from backend.app.schemas.goal import SavingsGoalCreate, SavingsGoalUpdate, SavingsGoalResponse, SavingsGoalTopUp
 
 router = APIRouter(prefix="/api/goals", tags=["Savings Goals"])
 
@@ -33,6 +36,12 @@ def get_goals(db: Session = Depends(get_db)):
 
 @router.post("", response_model=SavingsGoalResponse, status_code=status.HTTP_201_CREATED)
 def create_goal(goal_in: SavingsGoalCreate, db: Session = Depends(get_db)):
+    if goal_in.target_date < date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Target date cannot be in the past."
+        )
+
     is_completed = goal_in.current_savings >= goal_in.target_amount
     goal = SavingsGoal(
         goal_name=goal_in.goal_name,
@@ -64,11 +73,47 @@ def update_goal(goal_id: int, goal_in: SavingsGoalUpdate, db: Session = Depends(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current savings cannot be negative")
         goal.current_savings = goal_in.current_savings
     if goal_in.target_date is not None:
+        if goal_in.target_date < date.today():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Target date cannot be in the past."
+            )
         goal.target_date = goal_in.target_date
     if goal_in.description is not None:
         goal.description = goal_in.description
 
     goal.is_completed = goal.current_savings >= goal.target_amount
+
+    db.commit()
+    db.refresh(goal)
+    return _format_goal_response(goal)
+
+@router.post("/{goal_id}/topup", response_model=SavingsGoalResponse)
+def topup_goal(goal_id: int, topup_in: SavingsGoalTopUp, db: Session = Depends(get_db)):
+    goal = db.query(SavingsGoal).filter(SavingsGoal.id == goal_id).first()
+    if not goal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Savings goal not found")
+
+    add_amount = round(topup_in.amount, 2)
+    goal.current_savings = round(goal.current_savings + add_amount, 2)
+    goal.is_completed = goal.current_savings >= goal.target_amount
+
+    if topup_in.create_transaction:
+        sav_cat = db.query(Category).filter(Category.type == "expense", Category.name.ilike("%Investment%")).first()
+        if not sav_cat:
+            sav_cat = db.query(Category).filter(Category.type == "expense").first()
+
+        if sav_cat:
+            tx = Transaction(
+                type="expense",
+                amount=add_amount,
+                source_or_payee=f"Savings Deposit: {goal.goal_name}",
+                category_id=sav_cat.id,
+                description=f"Savings Goal Contribution",
+                date=date.today(),
+                payment_method="Bank Transfer"
+            )
+            db.add(tx)
 
     db.commit()
     db.refresh(goal)

@@ -5,6 +5,7 @@ from backend.app.models.budget import Budget
 from backend.app.models.recurring import RecurringTransaction
 from backend.app.models.emi import EMI
 from backend.app.models.sip import SIPInvestment
+from backend.app.models.sip_contribution import SIPContribution
 from backend.app.models.goal import SavingsGoal
 from backend.app.models.setting import AppSetting
 
@@ -16,6 +17,7 @@ __all__ = [
     "RecurringTransaction",
     "EMI",
     "SIPInvestment",
+    "SIPContribution",
     "SavingsGoal",
     "AppSetting"
 ]

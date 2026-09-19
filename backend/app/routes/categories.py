@@ -58,11 +58,20 @@ def update_category(category_id: int, category_in: CategoryUpdate, db: Session =
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_category(category_id: int, db: Session = Depends(get_db)):
+    from backend.app.models.transaction import Transaction
+
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
     if category.is_default:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Default categories cannot be deleted")
+    
+    linked_count = db.query(Transaction).filter(Transaction.category_id == category_id).count()
+    if linked_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete category '{category.name}' because {linked_count} transactions are currently using it."
+        )
     
     db.delete(category)
     db.commit()

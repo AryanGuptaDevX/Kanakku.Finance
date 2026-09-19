@@ -51,6 +51,7 @@ export const sipAPI = {
   getAll: () => api.get('/sips'),
   create: (data) => api.post('/sips', data),
   update: (id, data) => api.put(`/sips/${id}`, data),
+  contribute: (id, data) => api.post(`/sips/${id}/contribute`, data),
   delete: (id) => api.delete(`/sips/${id}`),
 };
 
@@ -58,6 +59,7 @@ export const goalAPI = {
   getAll: () => api.get('/goals'),
   create: (data) => api.post('/goals', data),
   update: (id, data) => api.put(`/goals/${id}`, data),
+  topup: (id, data) => api.post(`/goals/${id}/topup`, data),
   delete: (id) => api.delete(`/goals/${id}`),
 };
 
@@ -68,7 +70,7 @@ export const analyticsAPI = {
 export const settingsAPI = {
   get: () => api.get('/settings'),
   update: (key, value) => api.post('/settings', { key, value }),
-  resetData: () => api.post('/settings/reset-data'),
+  resetData: (confirmCode = 'RESET') => api.post('/settings/reset-data', { confirm_code: confirmCode }),
 };
 
 export default api;

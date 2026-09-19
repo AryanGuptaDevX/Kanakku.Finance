@@ -79,7 +79,7 @@ export const EMI = ({ onRefresh }) => {
     setModalError('');
 
     const pAmt = parseFloat(principalAmount);
-    const mPay = parseFloat(monthlyPayment);
+    const mPay = monthlyPayment ? parseFloat(monthlyPayment) : null;
     const iRate = parseFloat(interestRate);
     const tPay = parseInt(totalPayments);
 
@@ -89,10 +89,6 @@ export const EMI = ({ onRefresh }) => {
     }
     if (isNaN(pAmt) || pAmt <= 0) {
       setModalError('Principal amount must be > 0');
-      return;
-    }
-    if (isNaN(mPay) || mPay <= 0) {
-      setModalError('Monthly payment must be > 0');
       return;
     }
 
@@ -158,7 +154,7 @@ export const EMI = ({ onRefresh }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">EMI & Loan Tracker</h2>
-          <p className="text-xs text-slate-500 mt-1">Track active loans, remaining principal, monthly payment schedules, and repayment progress</p>
+          <p className="text-xs text-slate-500 mt-1">Track reducing balance loans, interest component, monthly principal, and payment schedules</p>
         </div>
         <Button onClick={() => handleOpenModal()} variant="primary" icon={Plus}>
           Add Loan / EMI
@@ -211,7 +207,7 @@ export const EMI = ({ onRefresh }) => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="text-base font-bold text-slate-900">{emi.loan_name}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Start Date: {formatDate(emi.start_date)}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Start Date: {formatDate(emi.start_date)} • <span className="font-semibold text-blue-600">{emi.interest_rate}% p.a.</span></p>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${emi.is_completed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                     {emi.is_completed ? 'FULLY PAID' : 'ACTIVE'}
@@ -228,8 +224,8 @@ export const EMI = ({ onRefresh }) => {
                     <span className="font-extrabold text-rose-600 text-base">{formatCurrency(emi.remaining_amount, currency)}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[11px] font-semibold">Payments Done</span>
-                    <span className="font-bold text-slate-700">{emi.payments_made} / {emi.total_payments} ({emi.payments_remaining} left)</span>
+                    <span className="text-slate-400 block text-[11px] font-semibold">Principal / Interest</span>
+                    <span className="font-semibold text-slate-700">{formatCurrency(emi.monthly_principal_component, currency)} / {formatCurrency(emi.monthly_interest_component, currency)}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px] font-semibold">Next Due Date</span>
@@ -240,7 +236,7 @@ export const EMI = ({ onRefresh }) => {
                 {/* Progress Bar */}
                 <div className="mt-4 space-y-1.5">
                   <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                    <span>Repayment Progress</span>
+                    <span>Repayment Progress ({emi.payments_made}/{emi.total_payments})</span>
                     <span>{emi.progress_percentage}%</span>
                   </div>
                   <ProgressBar percentage={emi.progress_percentage} color={emi.is_completed ? 'emerald' : 'sky'} height="h-2.5" />
@@ -304,22 +300,21 @@ export const EMI = ({ onRefresh }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Monthly Payment ({currency}) *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Monthly EMI ({currency})</label>
               <input
                 type="number"
                 step="0.01"
                 value={monthlyPayment}
                 onChange={(e) => setMonthlyPayment(e.target.value)}
-                placeholder="3000"
+                placeholder="Auto-calculated if blank"
                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
-                required
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Interest (%)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Interest (% p.a.)</label>
               <input
                 type="number"
                 step="0.1"
@@ -329,7 +324,7 @@ export const EMI = ({ onRefresh }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Installments</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Tenure (Months)</label>
               <input
                 type="number"
                 value={totalPayments}

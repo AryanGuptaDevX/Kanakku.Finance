@@ -55,11 +55,11 @@ def test_dashboard_calculations(client):
     assert summary["total_emi"] == 3000.0
     assert summary["total_sip"] == 500.0
 
-    # Available Balance = 20,000 - 7,500 - 3,000 - 500 = 9,000
-    assert summary["available_balance"] == 9000.0
+    # Available Balance = 20,000 - 7,500 = 12,500.0 (Expenses include logged payments; no double counting)
+    assert summary["available_balance"] == 12500.0
 
-    # Savings Rate = (9,000 / 20,000) * 100 = 45.0%
-    assert summary["savings_rate"] == 45.0
+    # Savings Rate = (12,500 / 20,000) * 100 = 62.5%
+    assert summary["savings_rate"] == 62.5
 
 def test_zero_income_division_by_zero_prevention(client):
     month = "2026-10"

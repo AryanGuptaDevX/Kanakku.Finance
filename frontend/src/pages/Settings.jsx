@@ -4,7 +4,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { settingsAPI } from '../services/api';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
-import { ConfirmModal } from '../components/common/ConfirmModal';
+import { Modal } from '../components/common/Modal';
 
 export const Settings = () => {
   const { currency, setCurrency } = useCurrency();
@@ -12,8 +12,10 @@ export const Settings = () => {
   const [savedMsg, setSavedMsg] = useState('');
 
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [confirmInput, setConfirmInput] = useState('');
   const [resetting, setResetting] = useState(false);
   const [resetMsg, setResetMsg] = useState('');
+  const [resetError, setResetError] = useState('');
 
   const currencies = [
     { symbol: '₹', name: 'Indian Rupee (INR)' },
@@ -32,15 +34,24 @@ export const Settings = () => {
     setTimeout(() => setSavedMsg(''), 3000);
   };
 
-  const handleResetData = async () => {
+  const handleResetData = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    if (confirmInput.trim() !== 'RESET') {
+      setResetError('You must type "RESET" exactly to confirm.');
+      return;
+    }
+
     setResetting(true);
     try {
-      await settingsAPI.resetData();
+      await settingsAPI.resetData('RESET');
       setResetMsg('Database reset completely. Default categories re-seeded.');
       setIsResetModalOpen(false);
+      setConfirmInput('');
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       console.error('Failed to reset database:', err);
+      setResetError(err.response?.data?.detail || 'Failed to reset database');
     } finally {
       setResetting(false);
     }
@@ -138,22 +149,51 @@ export const Settings = () => {
               Wipe all transactions, budgets, EMI loans, SIP investments, and custom categories. Restores default database seeds.
             </p>
           </div>
-          <Button variant="danger" onClick={() => setIsResetModalOpen(true)} icon={AlertTriangle}>
+          <Button variant="danger" onClick={() => { setConfirmInput(''); setResetError(''); setIsResetModalOpen(true); }} icon={AlertTriangle}>
             Reset All Data
           </Button>
         </div>
       </Card>
 
-      {/* Reset Confirmation Modal */}
-      <ConfirmModal
-        isOpen={isResetModalOpen}
-        onClose={() => setIsResetModalOpen(false)}
-        onConfirm={handleResetData}
-        title="Wipe Database & Reset Data?"
-        message="This action will permanently delete all logged transactions, budgets, EMI loans, and SIP investments. Default categories will be re-seeded."
-        confirmText="Reset Entire DB"
-        loading={resetting}
-      />
+      {/* Protected Reset Confirmation Modal */}
+      <Modal isOpen={isResetModalOpen} onClose={() => setIsResetModalOpen(false)} title="Wipe Database & Reset Data">
+        <form onSubmit={handleResetData} className="space-y-4">
+          <p className="text-xs text-slate-600 leading-relaxed">
+            This action will <strong className="text-rose-600">permanently delete all logged transactions, budgets, EMI loans, and SIP investments</strong>.
+          </p>
+
+          {resetError && (
+            <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold">
+              {resetError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Type <span className="font-black text-rose-600">RESET</span> to confirm *
+            </label>
+            <input
+              type="text"
+              value={confirmInput}
+              onChange={(e) => setConfirmInput(e.target.value)}
+              placeholder="RESET"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-rose-500"
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button variant="secondary" onClick={() => setIsResetModalOpen(false)} disabled={resetting}>Cancel</Button>
+            <Button
+              type="submit"
+              variant="danger"
+              disabled={resetting || confirmInput.trim() !== 'RESET'}
+            >
+              {resetting ? 'Resetting...' : 'Wipe & Reset Database'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

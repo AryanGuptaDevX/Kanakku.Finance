@@ -25,6 +25,9 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
   const [categoryId, setCategoryId] = useState('');
   const [frequency, setFrequency] = useState('monthly');
   const [dayOfMonth, setDayOfMonth] = useState(1);
+  const [dayOfWeek, setDayOfWeek] = useState(0);
+  const [monthOfYear, setMonthOfYear] = useState(1);
+
   const [modalError, setModalError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +36,31 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
 
   const [deletingId, setDeletingId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const weekdays = [
+    { value: 0, label: 'Monday' },
+    { value: 1, label: 'Tuesday' },
+    { value: 2, label: 'Wednesday' },
+    { value: 3, label: 'Thursday' },
+    { value: 4, label: 'Friday' },
+    { value: 5, label: 'Saturday' },
+    { value: 6, label: 'Sunday' },
+  ];
+
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ];
 
   useEffect(() => {
     loadData();
@@ -63,6 +91,8 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
       setCategoryId(item.category_id.toString());
       setFrequency(item.frequency);
       setDayOfMonth(item.day_of_month || 1);
+      setDayOfWeek(item.day_of_week !== undefined && item.day_of_week !== null ? item.day_of_week : 0);
+      setMonthOfYear(item.month_of_year || 1);
     } else {
       setEditingItem(null);
       setTitle('');
@@ -71,6 +101,8 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
       setCategoryId(categories.length > 0 ? categories[0].id.toString() : '');
       setFrequency('monthly');
       setDayOfMonth(1);
+      setDayOfWeek(0);
+      setMonthOfYear(1);
     }
     setModalError('');
     setIsModalOpen(true);
@@ -102,7 +134,9 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
         amount: parsedAmount,
         category_id: parseInt(categoryId),
         frequency,
-        day_of_month: parseInt(dayOfMonth),
+        day_of_month: frequency !== 'weekly' ? parseInt(dayOfMonth) : null,
+        day_of_week: frequency === 'weekly' ? parseInt(dayOfWeek) : null,
+        month_of_year: frequency === 'yearly' ? parseInt(monthOfYear) : null,
         is_active: editingItem ? editingItem.is_active : true
       };
 
@@ -206,7 +240,7 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
                   <th className="py-3.5 px-4">Type</th>
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Frequency</th>
-                  <th className="py-3.5 px-4">Cycle Day</th>
+                  <th className="py-3.5 px-4">Cycle Details</th>
                   <th className="py-3.5 px-4">Last Processed</th>
                   <th className="py-3.5 px-4 text-right">Amount</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
@@ -224,7 +258,15 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
                     </td>
                     <td className="py-3.5 px-4 text-slate-700">{item.category?.name}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700 capitalize">{item.frequency}</td>
-                    <td className="py-3.5 px-4 text-slate-500">Day {item.day_of_month || 1}</td>
+                    <td className="py-3.5 px-4 text-slate-500 font-medium">
+                      {item.frequency === 'weekly' ? (
+                        <span>Every {weekdays.find(w => w.value === item.day_of_week)?.label || 'Monday'}</span>
+                      ) : item.frequency === 'yearly' ? (
+                        <span>{months.find(m => m.value === item.month_of_year)?.label || 'Jan'} {item.day_of_month || 1}</span>
+                      ) : (
+                        <span>Day {item.day_of_month || 1} of month</span>
+                      )}
+                    </td>
                     <td className="py-3.5 px-4 text-slate-500">{item.last_processed_date ? formatDate(item.last_processed_date) : 'Never'}</td>
                     <td className={`py-3.5 px-4 text-right font-black ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {formatCurrency(item.amount, currency)}
@@ -323,22 +365,37 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Frequency *</label>
+            <select
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          {frequency === 'weekly' && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Frequency *</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Day of Week *</label>
               <select
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
+                value={dayOfWeek}
+                onChange={(e) => setDayOfWeek(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
               >
-                <option value="monthly">Monthly</option>
-                <option value="weekly">Weekly</option>
-                <option value="yearly">Yearly</option>
+                {weekdays.map((w) => (
+                  <option key={w.value} value={w.value}>{w.label}</option>
+                ))}
               </select>
             </div>
+          )}
 
+          {frequency === 'monthly' && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Day of Month (1-31)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Day of Month (1-31) *</label>
               <input
                 type="number"
                 min="1"
@@ -346,9 +403,39 @@ export const Recurring = ({ selectedMonth, onRefresh }) => {
                 value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                required
               />
             </div>
-          </div>
+          )}
+
+          {frequency === 'yearly' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Month of Year *</label>
+                <select
+                  value={monthOfYear}
+                  onChange={(e) => setMonthOfYear(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                >
+                  {months.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Day of Month *</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={dayOfMonth}
+                  onChange={(e) => setDayOfMonth(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={saving}>Cancel</Button>

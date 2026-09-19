@@ -78,20 +78,29 @@ def update_transaction(transaction_id: int, transaction_in: TransactionUpdate, d
     if not tx:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     
-    if transaction_in.category_id is not None:
-        category = db.query(Category).filter(Category.id == transaction_in.category_id).first()
-        if not category:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-        tx.category_id = transaction_in.category_id
+    target_type = transaction_in.type if transaction_in.type is not None else tx.type
+    target_category_id = transaction_in.category_id if transaction_in.category_id is not None else tx.category_id
 
-    if transaction_in.type is not None:
-        tx.type = transaction_in.type
+    category = db.query(Category).filter(Category.id == target_category_id).first()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    if category.type != target_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Category '{category.name}' type ({category.type}) does not match transaction type ({target_type})"
+        )
+
+    tx.type = target_type
+    tx.category_id = target_category_id
+
     if transaction_in.amount is not None:
         if transaction_in.amount <= 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be greater than 0")
         tx.amount = transaction_in.amount
     if transaction_in.source_or_payee is not None:
-        tx.source_or_payee = transaction_in.source_or_payee
+        if not transaction_in.source_or_payee.strip():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Source/Payee name cannot be empty")
+        tx.source_or_payee = transaction_in.source_or_payee.strip()
     if transaction_in.description is not None:
         tx.description = transaction_in.description
     if transaction_in.date is not None:

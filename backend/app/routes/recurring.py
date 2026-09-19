@@ -64,6 +64,10 @@ def update_recurring_transaction(recurring_id: int, recurring_in: RecurringUpdat
         rec.frequency = recurring_in.frequency
     if recurring_in.day_of_month is not None:
         rec.day_of_month = recurring_in.day_of_month
+    if recurring_in.day_of_week is not None:
+        rec.day_of_week = recurring_in.day_of_week
+    if recurring_in.month_of_year is not None:
+        rec.month_of_year = recurring_in.month_of_year
     if recurring_in.is_active is not None:
         rec.is_active = recurring_in.is_active
 

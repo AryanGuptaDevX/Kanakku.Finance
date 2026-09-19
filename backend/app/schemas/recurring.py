@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import date as date_type, datetime
 from typing import Optional
 from backend.app.schemas.category import CategoryResponse
@@ -23,6 +23,8 @@ class RecurringUpdate(BaseModel):
     category_id: Optional[int] = None
     frequency: Optional[str] = None
     day_of_month: Optional[int] = None
+    day_of_week: Optional[int] = None
+    month_of_year: Optional[int] = None
     is_active: Optional[bool] = None
 
 class RecurringResponse(RecurringBase):
@@ -31,5 +33,4 @@ class RecurringResponse(RecurringBase):
     created_at: datetime
     category: CategoryResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -124,8 +124,7 @@ export const SavingsGoals = () => {
     if (isNaN(addAmt) || addAmt <= 0) return;
 
     try {
-      const newSavings = topUpGoal.current_savings + addAmt;
-      await goalAPI.update(topUpGoal.id, { current_savings: newSavings });
+      await goalAPI.topup(topUpGoal.id, { amount: addAmt, create_transaction: true });
       setIsTopUpOpen(false);
       setTopUpAmount('');
       loadGoals();
@@ -321,6 +320,7 @@ export const SavingsGoals = () => {
             <input
               type="date"
               value={targetDate}
+              min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setTargetDate(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               required

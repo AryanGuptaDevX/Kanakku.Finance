@@ -24,6 +24,7 @@ class FinancialCalculator:
     @classmethod
     def get_dashboard_summary(cls, db: Session, month_str: str):
         start_date, end_date = cls.get_month_date_range(month_str)
+        last_day_of_month = end_date.day
 
         # 1. Total Income & Expenses for month
         income_query = db.query(func.coalesce(func.sum(Transaction.amount), 0.0)).filter(
@@ -43,26 +44,49 @@ class FinancialCalculator:
 
         # 2. Total EMI payments for active loans
         active_emis = db.query(EMI).filter(EMI.is_completed == False).all()
-        total_emi = round(sum(emi.monthly_payment for emi in active_emis), 2)
+        total_emi_obligation = round(sum(emi.monthly_payment for emi in active_emis), 2)
 
-        # 3. Total SIP contributions
-        active_sips = db.query(SIPInvestment).all()
-        total_sip = round(sum(sip.monthly_amount for sip in active_sips), 2)
+        # 3. Total active SIP commitments
+        active_sips = db.query(SIPInvestment).filter(SIPInvestment.is_active == True).all()
+        total_sip_commitment = round(sum(sip.monthly_amount for sip in active_sips), 2)
 
-        # 4. Available Balance = Income - Expenses - EMI - SIP
-        available_balance = round(total_income - total_expenses - total_emi - total_sip, 2)
+        # 4. Available Balance = Income - Expenses (Expenses include logged EMI & SIP payments)
+        available_balance = round(total_income - total_expenses, 2)
 
-        # 5. Savings Rate = (Available Balance / Total Income) * 100
+        # 5. Savings Rate = (Available Balance / Total Income) * 100 (exact decimal, can be negative)
         savings_rate = 0.0
         if total_income > 0:
-            savings_rate = round(max((available_balance / total_income) * 100, 0.0), 2)
+            savings_rate = round((available_balance / total_income) * 100, 1)
 
-        # 6. Income vs Expense Chart (Current month breakdown)
+        # Calculate Previous Month's Balance for Month-over-Month Growth
+        dt = datetime.strptime(month_str, "%Y-%m")
+        prev_y = dt.year if dt.month > 1 else dt.year - 1
+        prev_m = dt.month - 1 if dt.month > 1 else 12
+        prev_month_str = f"{prev_y:04d}-{prev_m:02d}"
+        prev_start, prev_end = cls.get_month_date_range(prev_month_str)
+
+        prev_inc = float(db.query(func.coalesce(func.sum(Transaction.amount), 0.0)).filter(
+            Transaction.type == "income", Transaction.date >= prev_start, Transaction.date <= prev_end
+        ).scalar())
+
+        prev_exp = float(db.query(func.coalesce(func.sum(Transaction.amount), 0.0)).filter(
+            Transaction.type == "expense", Transaction.date >= prev_start, Transaction.date <= prev_end
+        ).scalar())
+
+        prev_balance = round(prev_inc - prev_exp, 2)
+        
+        balance_growth_percentage = 0.0
+        if prev_balance != 0:
+            balance_growth_percentage = round(((available_balance - prev_balance) / abs(prev_balance)) * 100, 1)
+        elif available_balance > 0:
+            balance_growth_percentage = 100.0
+
+        # 6. Income vs Expense Breakdown Chart
         income_vs_expense_chart = [
             {"category": "Income", "amount": total_income, "color": "#10b981"},
             {"category": "Expenses", "amount": total_expenses, "color": "#ef4444"},
-            {"category": "EMI", "amount": total_emi, "color": "#f59e0b"},
-            {"category": "SIP", "amount": total_sip, "color": "#3b82f6"}
+            {"category": "EMI Obligations", "amount": total_emi_obligation, "color": "#f59e0b"},
+            {"category": "SIP Commitments", "amount": total_sip_commitment, "color": "#3b82f6"}
         ]
 
         # 7. Expense Category Breakdown for month
@@ -91,7 +115,6 @@ class FinancialCalculator:
                 "percentage": round(pct, 1)
             })
 
-        # Sort category breakdown by highest amount
         expense_category_breakdown.sort(key=lambda x: x["amount"], reverse=True)
 
         # 8. Monthly Trend (Past 6 months up to selected month)
@@ -130,20 +153,20 @@ class FinancialCalculator:
             for g in goals
         ]
 
-        # 11. Upcoming EMI Payments
-        upcoming_emis = [
-            {
+        # 11. Upcoming EMI Payments (with valid due day clamping)
+        upcoming_emis = []
+        for emi in active_emis:
+            actual_due_day = min(emi.due_day, last_day_of_month)
+            upcoming_emis.append({
                 "id": emi.id,
                 "loan_name": emi.loan_name,
                 "monthly_payment": emi.monthly_payment,
-                "due_day": emi.due_day,
-                "due_date": f"{month_str}-{emi.due_day:02d}",
+                "due_day": actual_due_day,
+                "due_date": f"{month_str}-{actual_due_day:02d}",
                 "remaining_amount": emi.remaining_amount
-            }
-            for emi in active_emis
-        ]
+            })
 
-        # 12. Recent Transactions (Latest 5 in month)
+        # 12. Recent Transactions
         recent_txs = db.query(Transaction).filter(
             Transaction.date >= start_date,
             Transaction.date <= end_date
@@ -153,10 +176,11 @@ class FinancialCalculator:
             "month": month_str,
             "total_income": total_income,
             "total_expenses": total_expenses,
-            "total_emi": total_emi,
-            "total_sip": total_sip,
+            "total_emi": total_emi_obligation,
+            "total_sip": total_sip_commitment,
             "available_balance": available_balance,
             "savings_rate": savings_rate,
+            "balance_growth_percentage": balance_growth_percentage,
             "income_vs_expense_chart": income_vs_expense_chart,
             "expense_category_breakdown": expense_category_breakdown,
             "monthly_trend": monthly_trend,
@@ -172,7 +196,6 @@ class FinancialCalculator:
         dt = datetime.strptime(target_month_str, "%Y-%m")
         trend = []
 
-        # Generate month list backwards
         month_list = []
         curr_year, curr_month = dt.year, dt.month
         for _ in range(num_months):

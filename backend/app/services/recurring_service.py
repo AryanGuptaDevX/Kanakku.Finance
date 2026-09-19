@@ -36,22 +36,23 @@ class RecurringService:
             if r.frequency == "monthly":
                 day_num = min(r.day_of_month or 1, last_day)
                 target_date = date(year, month, day_num)
-                if target_date <= cutoff_date:
+                if target_date <= month_end:
                     target_dates.append(target_date)
 
             elif r.frequency == "weekly":
-                if r.day_of_week is not None:
-                    curr = month_start
-                    while curr <= cutoff_date:
-                        if curr.weekday() == r.day_of_week:
-                            target_dates.append(curr)
-                        curr += timedelta(days=1)
+                w_day = r.day_of_week if r.day_of_week is not None else 0
+                curr = month_start
+                while curr <= month_end:
+                    if curr.weekday() == w_day:
+                        target_dates.append(curr)
+                    curr += timedelta(days=1)
 
             elif r.frequency == "yearly":
-                if r.month_of_year == month:
+                target_m = r.month_of_year or 1
+                if target_m == month:
                     day_num = min(r.day_of_month or 1, last_day)
                     target_date = date(year, month, day_num)
-                    if target_date <= cutoff_date:
+                    if target_date <= month_end:
                         target_dates.append(target_date)
 
             for t_date in target_dates:

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import date as date_type, datetime
 from typing import Optional
 
@@ -19,6 +19,10 @@ class SavingsGoalUpdate(BaseModel):
     target_date: Optional[date_type] = None
     description: Optional[str] = None
 
+class SavingsGoalTopUp(BaseModel):
+    amount: float = Field(..., gt=0)
+    create_transaction: bool = True
+
 class SavingsGoalResponse(SavingsGoalBase):
     id: int
     is_completed: bool
@@ -28,5 +32,4 @@ class SavingsGoalResponse(SavingsGoalBase):
     remaining_amount: float
     progress_percentage: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

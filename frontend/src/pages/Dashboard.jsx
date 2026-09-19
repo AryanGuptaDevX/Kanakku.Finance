@@ -59,8 +59,10 @@ export const Dashboard = ({ selectedMonth, onRefresh }) => {
           <div className="z-10">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase font-extrabold tracking-wider text-blue-200">Total Net Balance</span>
-              <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1">
-                ↑ 20% Growth
+              <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-md ${
+                (data.balance_growth_percentage || 0) >= 0 ? 'bg-white/20 text-white' : 'bg-rose-500/30 text-rose-100 border border-rose-400/40'
+              }`}>
+                {(data.balance_growth_percentage || 0) >= 0 ? '↑' : '↓'} {Math.abs(data.balance_growth_percentage || 0)}% MoM
               </span>
             </div>
             <h2 className="text-3xl font-black mt-3 tracking-tight">{formatCurrency(data.available_balance, currency)}</h2>
@@ -74,17 +76,22 @@ export const Dashboard = ({ selectedMonth, onRefresh }) => {
             </div>
             <div>
               <p className="text-[11px] font-semibold text-blue-200 uppercase">Savings Rate</p>
-              <p className="text-lg font-bold text-white mt-0.5">{data.savings_rate}% Achieved</p>
+              <p className={`text-lg font-bold mt-0.5 ${data.savings_rate < 0 ? 'text-rose-200 font-black' : 'text-white'}`}>
+                {data.savings_rate}% {data.savings_rate < 0 ? 'Deficit' : 'Achieved'}
+              </p>
             </div>
           </div>
 
           <div className="z-10">
             <div className="flex justify-between items-center text-xs font-bold mb-1.5 text-blue-100">
-              <span>Savings Rate Target</span>
-              <span>{data.savings_rate}%</span>
+              <span>Savings Rate Status</span>
+              <span className={data.savings_rate < 0 ? 'text-rose-200 font-bold' : ''}>{data.savings_rate}%</span>
             </div>
             <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden mb-4">
-              <div className="bg-white h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(data.savings_rate, 100)}%` }} />
+              <div
+                className={`h-2 rounded-full transition-all duration-500 ${data.savings_rate < 0 ? 'bg-rose-400' : 'bg-white'}`}
+                style={{ width: `${Math.max(0, Math.min(data.savings_rate, 100))}%` }}
+              />
             </div>
           </div>
 
